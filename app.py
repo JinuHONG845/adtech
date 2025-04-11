@@ -12,7 +12,7 @@ st.set_page_config(
 
 # Initialize API clients using Streamlit secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-anthropic_client = anthropic.Client(api_key=st.secrets["ANTHROPIC_API_KEY"])
+anthropic_client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Title and description
@@ -83,7 +83,7 @@ if submitted:
                         {"role": "user", "content": prompt}
                     ]
                 )
-                results["Claude-3.7"] = response.content
+                results["Claude-3.7"] = response.content[0].text
             except Exception as e:
                 st.error(f"Claude-3.7 오류: {str(e)}")
 
