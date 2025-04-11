@@ -14,7 +14,8 @@ st.set_page_config(
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 anthropic_client = anthropic.Anthropic(
     api_key=st.secrets["ANTHROPIC_API_KEY"],
-    timeout=30.0
+    timeout=30.0,
+    max_retries=3
 )
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
@@ -81,12 +82,13 @@ if submitted:
         if "Claude" in selected_models:
             try:
                 response = anthropic_client.messages.create(
-                    model="claude-3-opus-20240229",
+                    model="claude-3-sonnet-20240229",
                     max_tokens=1000,
                     messages=[
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=0.7
+                    temperature=0.7,
+                    system="당신은 광고 매체 전문가입니다."
                 )
                 results["Claude"] = response.content[0].text
             except Exception as e:
