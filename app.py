@@ -35,16 +35,18 @@ try:
 except Exception as e:
     st.error(f"API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
 
-# CSS 스타일 적용 (Google Performance Max 스타일)
+# CSS 스타일 적용 (Google Performance Max 스타일 + 다크 모드 호환)
 st.markdown("""
 <style>
+    /* 기본 스타일링 (라이트 및 다크 모드 호환) */
     .main {
-        background-color: #f8f9fa;
         padding: 1rem;
     }
+    
+    /* 버튼 스타일 */
     .stButton>button {
         background-color: #1a73e8;
-        color: white;
+        color: white !important;
         border: none;
         padding: 0.5rem 1rem;
         border-radius: 4px;
@@ -53,24 +55,45 @@ st.markdown("""
     .stButton>button:hover {
         background-color: #1557b0;
     }
+    
+    /* 카드 및 컨테이너 스타일 */
     .step-container {
-        background-color: white;
+        background-color: rgba(255, 255, 255, 0.8);
+        color: #202124;
         padding: 2rem;
         border-radius: 8px;
         box-shadow: 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
         margin-bottom: 1.5rem;
     }
+    
+    /* 다크 모드 대응 */
+    [data-testid="stAppViewContainer"] .step-container {
+        background-color: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.9);
+    }
+    
+    /* 제목 및 텍스트 스타일 */
     .header-title {
-        color: #202124;
         font-size: 1.8rem;
         font-weight: 500;
         margin-bottom: 1rem;
+        color: #202124;
     }
     .subheader {
-        color: #5f6368;
         font-size: 1.1rem;
         margin-bottom: 1.5rem;
+        color: #5f6368;
     }
+    
+    /* 다크 모드에서 제목 색상 */
+    [data-testid="stAppViewContainer"] .header-title {
+        color: rgba(255, 255, 255, 0.95);
+    }
+    [data-testid="stAppViewContainer"] .subheader {
+        color: rgba(255, 255, 255, 0.75);
+    }
+    
+    /* 카드 및 메트릭 스타일 */
     .result-card {
         background-color: white;
         border-radius: 8px;
@@ -86,6 +109,33 @@ st.markdown("""
     .metric-label {
         color: #5f6368;
         font-size: 0.9rem;
+    }
+    
+    /* 다크 모드에서 카드 스타일 */
+    [data-testid="stAppViewContainer"] .result-card {
+        background-color: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.9);
+    }
+    [data-testid="stAppViewContainer"] .metric-label {
+        color: rgba(255, 255, 255, 0.75);
+    }
+    
+    /* 다크 모드에서 입력 필드 스타일 */
+    [data-testid="stAppViewContainer"] input, 
+    [data-testid="stAppViewContainer"] textarea,
+    [data-testid="stAppViewContainer"] .stSelectbox label {
+        color: white !important;
+    }
+    
+    /* 탭 스타일링 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        border-radius: 4px 4px 0px 0px;
+        margin-right: 0px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -113,7 +163,7 @@ def render_header():
         st.markdown('<div class="subheader">최적의 매체 전략을 AI가 추천해 드립니다</div>', unsafe_allow_html=True)
     with col2:
         if st.session_state.step > 1:
-            if st.button("처음으로 돌아가기"):
+            if st.button("처음으로 돌아가기", type="primary"):
                 st.session_state.step = 1
                 st.session_state.campaign_data = {
                     "brand_name": "",
@@ -142,7 +192,7 @@ def show_progress():
             elif i+1 == st.session_state.step:
                 st.markdown(f"<div style='text-align: center; color: #1a73e8; font-weight: 700;'>{step}</div>", unsafe_allow_html=True)
             else:
-                st.markdown(f"<div style='text-align: center; color: #5f6368;'>{step}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align: center; color: rgba(150, 150, 150, 0.8); font-weight: 400;'>{step}</div>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
 # AI 모델 호출 함수
@@ -320,7 +370,8 @@ def render_step_1():
                 help="광고할 브랜드나 제품의 이름을 입력하세요")
             
             brand_description = st.text_area("브랜드 설명", 
-                help="브랜드/제품의 특징, 타깃 고객층, 차별화 포인트 등을 자세히 설명해주세요")
+                help="브랜드/제품의 특징, 타깃 고객층, 차별화 포인트 등을 자세히 설명해주세요", 
+                height=150)
             
             campaign_goal = st.text_input("캠페인 목표", 
                 help="예: 브랜드 인지도 향상, 웹사이트 트래픽 증가, 전환율 개선 등")
@@ -329,10 +380,10 @@ def render_step_1():
             selected_models = st.multiselect(
                 "하나 이상의 AI 모델을 선택하세요",
                 ["ChatGPT", "Claude", "Gemini", "DeepSeek", "Grok"],
-                default=["ChatGPT"]
+                default=["ChatGPT", "Gemini"]
             )
             
-            submitted = st.form_submit_button("분석 시작")
+            submitted = st.form_submit_button("분석 시작", type="primary")
             
             if submitted:
                 if not brand_name or not brand_description or not campaign_goal or not selected_models:
@@ -356,6 +407,13 @@ def render_step_1():
         - 타겟 고객층이 있다면 함께 기재해 주세요
         - 구체적인 마케팅 목표를 설정해 주세요
         - 여러 AI 모델을 선택하면 다양한 시각의 분석을 받아볼 수 있습니다
+        """)
+        
+        st.warning("""
+        ⚠️ **API 키 안내**
+        
+        이 앱은 여러 AI 모델 API를 사용합니다. 
+        없는 API 키는 해당 모델을 건너뛰게 됩니다.
         """)
     
     st.markdown('</div>', unsafe_allow_html=True)
@@ -441,7 +499,7 @@ def render_step_3():
             
             with col2:
                 st.markdown("#### 추천 광고 유형")
-                st.info(f"**{result['parsed_data']['ad_type']}** 중심의 전략이 추천됩니다.")
+                st.success(f"**{result['parsed_data']['ad_type']}** 중심의 전략이 추천됩니다.")
                 
                 st.markdown("#### 매체별 예산 배분")
                 media_data = pd.DataFrame({
@@ -449,10 +507,20 @@ def render_step_3():
                     '비율(%)': list(result['parsed_data']['media_distribution'].values())
                 })
                 
+                # 다크 모드 대응 색상 팔레트
+                color_sequence = px.colors.qualitative.Pastel
+                
                 fig = px.pie(media_data, values='비율(%)', names='매체', 
-                            color_discrete_sequence=px.colors.qualitative.Set2,
+                            color_discrete_sequence=color_sequence,
                             hole=0.4)
-                fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+                fig.update_layout(
+                    margin=dict(t=0, b=0, l=0, r=0),
+                    # 배경 투명하게 설정
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    # 글자색 설정 (다크모드 대응)
+                    font=dict(color='rgba(255,255,255,0.85)')
+                )
                 st.plotly_chart(fig, use_container_width=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
@@ -462,7 +530,11 @@ def render_step_3():
     st.markdown("### 📈 캠페인 시뮬레이션")
     
     # 시뮬레이션 실행 버튼
-    if st.button("시뮬레이션 실행") or st.session_state.simulation_results:
+    sim_button_col, _ = st.columns([1, 3])
+    with sim_button_col:
+        run_simulation = st.button("시뮬레이션 실행", type="primary", key="sim_button")
+    
+    if run_simulation or st.session_state.simulation_results:
         # 선택된 첫 번째 모델의 추천을 기반으로 시뮬레이션
         first_model = list(analysis_results.keys())[0]
         ad_type = analysis_results[first_model]["parsed_data"]["ad_type"]
@@ -482,17 +554,22 @@ def render_step_3():
         
         metrics_col1, metrics_col2, metrics_col3, metrics_col4 = st.columns(4)
         with metrics_col1:
-            st.metric("총 노출 수", f"{total_impressions:,}")
+            st.metric("총 노출 수", f"{total_impressions:,}", delta=None)
         with metrics_col2:
-            st.metric("평균 클릭률", f"{avg_ctr:.2%}")
+            st.metric("평균 클릭률", f"{avg_ctr:.2%}", delta=None)
         with metrics_col3:
-            st.metric("총 전환 수", f"{total_conversions:,}")
+            st.metric("총 전환 수", f"{total_conversions:,}", delta=None)
         with metrics_col4:
-            st.metric("최종 도달률", f"{final_reach:.1f}%")
+            st.metric("최종 도달률", f"{final_reach:.1f}%", delta=None)
         
         # 추세 그래프
         st.markdown("#### 시간에 따른 성과 추이")
         tab1, tab2, tab3 = st.tabs(["클릭 및 전환", "도달률", "세부 데이터"])
+        
+        # 다크 모드 대응 색상
+        click_color = '#4285F4'  # 구글 블루
+        conversion_color = '#EA4335'  # 구글 레드
+        reach_color = '#34A853'  # 구글 그린
         
         with tab1:
             fig = go.Figure()
@@ -501,21 +578,26 @@ def render_step_3():
                 y=sim_data['clicks'],
                 mode='lines+markers',
                 name='클릭 수',
-                marker=dict(color='#1a73e8')
+                marker=dict(color=click_color)
             ))
             fig.add_trace(go.Scatter(
                 x=sim_data['week'], 
                 y=sim_data['conversions'],
                 mode='lines+markers',
                 name='전환 수',
-                marker=dict(color='#ea4335')
+                marker=dict(color=conversion_color)
             ))
             fig.update_layout(
                 title='주간 클릭 및 전환 추이',
                 xaxis_title='주차',
                 yaxis_title='수치',
                 hovermode='x unified',
-                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+                # 배경 투명하게 설정
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                # 글자색 설정 (다크모드 대응)
+                font=dict(color='rgba(255,255,255,0.85)')
             )
             st.plotly_chart(fig, use_container_width=True)
         
@@ -526,18 +608,24 @@ def render_step_3():
                 y=sim_data['reach']*100,
                 mode='lines+markers',
                 name='도달률',
-                marker=dict(color='#34a853'),
+                marker=dict(color=reach_color),
                 fill='tozeroy'
             ))
             fig.update_layout(
                 title='주간 도달률 추이',
                 xaxis_title='주차',
                 yaxis_title='도달률 (%)',
-                hovermode='x unified'
+                hovermode='x unified',
+                # 배경 투명하게 설정
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                # 글자색 설정 (다크모드 대응)
+                font=dict(color='rgba(255,255,255,0.85)')
             )
             st.plotly_chart(fig, use_container_width=True)
         
         with tab3:
+            # 스타일링 옵션 추가
             st.dataframe(
                 sim_data.style
                 .format({
@@ -560,7 +648,14 @@ def render_step_3():
                 use_container_width=True
             )
     else:
-        st.info("'시뮬레이션 실행' 버튼을 클릭하면 12주간의 캠페인 성과 예측 결과를 볼 수 있습니다.")
+        st.info("""
+        💡 **시뮬레이션 안내**
+        
+        '시뮬레이션 실행' 버튼을 클릭하면 AI가 추천한 광고 유형을 기반으로 
+        12주간의 캠페인 성과 예측 결과를 볼 수 있습니다.
+        
+        이 시뮬레이션은 브랜드 정보와 AI 추천을 바탕으로 예상 성과를 계산합니다.
+        """)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
