@@ -1,4 +1,5 @@
 import streamlit as st
+from openai import OpenAI
 import google.generativeai as genai
 import requests
 import json
@@ -65,6 +66,10 @@ elif st.session_state.current_step == 2:
 else:
     progress = 100
 progress_bar = st.progress(progress)
+
+# Initialize API clients
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Step 1: Campaign Information
 if st.session_state.current_step == 1:
@@ -143,32 +148,15 @@ elif st.session_state.current_step == 2:
                         # GPT-4
                         if "GPT-4" in selected_models:
                             try:
-                                headers = {
-                                    "Content-Type": "application/json",
-                                    "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}"
-                                }
-                                
-                                payload = {
-                                    "model": "gpt-4-turbo-preview",
-                                    "messages": [
+                                response = client.chat.completions.create(
+                                    model="gpt-4-turbo-preview",
+                                    messages=[
                                         {"role": "system", "content": "당신은 광고 매체 전문가입니다."},
                                         {"role": "user", "content": prompt}
                                     ],
-                                    "temperature": 0.7
-                                }
-                                
-                                response = requests.post(
-                                    "https://api.openai.com/v1/chat/completions",
-                                    headers=headers,
-                                    json=payload
+                                    temperature=0.7
                                 )
-                                
-                                if response.status_code == 200:
-                                    response_data = response.json()
-                                    results["GPT-4"] = response_data["choices"][0]["message"]["content"]
-                                else:
-                                    st.error(f"GPT-4 오류: API 응답 코드 {response.status_code}")
-                                    
+                                results["GPT-4"] = response.choices[0].message.content
                             except Exception as e:
                                 st.error(f"GPT-4 오류: {str(e)}")
 
