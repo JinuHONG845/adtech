@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 from openai import OpenAI
 import google.generativeai as genai
 
@@ -9,6 +8,10 @@ st.set_page_config(
     page_icon="📊",
     layout="wide"
 )
+
+# Initialize API clients
+openai_client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY"))
+genai.configure(api_key=st.secrets.get("GOOGLE_API_KEY"))
 
 # Title and description
 st.title("AI 기반 매체 컨설팅")
@@ -57,8 +60,7 @@ if submitted:
         # GPT-4
         if "GPT-4" in selected_models:
             try:
-                client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-                response = client.chat.completions.create(
+                response = openai_client.chat.completions.create(
                     model="gpt-4-turbo-preview",
                     messages=[
                         {"role": "system", "content": "당신은 광고 매체 전문가입니다."},
@@ -73,7 +75,6 @@ if submitted:
         # Gemini
         if "Gemini" in selected_models:
             try:
-                genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
                 model = genai.GenerativeModel('gemini-pro')
                 response = model.generate_content(
                     prompt,
