@@ -67,9 +67,6 @@ else:
     progress = 100
 progress_bar = st.progress(progress)
 
-# Configure Gemini
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-
 # Step 1: Campaign Information
 if st.session_state.current_step == 1:
     with st.container():
@@ -164,6 +161,7 @@ elif st.session_state.current_step == 2:
                         # Gemini
                         if "Gemini" in selected_models:
                             try:
+                                genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
                                 model = genai.GenerativeModel('gemini-pro')
                                 response = model.generate_content(
                                     prompt,
