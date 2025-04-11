@@ -3,14 +3,8 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 import random
-from openai import OpenAI
-from anthropic import Anthropic
-import google.generativeai as genai
-import time
 import requests
-import os
 
 # 페이지 설정
 st.set_page_config(
@@ -20,73 +14,268 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 환경 변수에서 프록시 설정 제거
-if 'HTTP_PROXY' in os.environ:
-    del os.environ['HTTP_PROXY']
-if 'HTTPS_PROXY' in os.environ:
-    del os.environ['HTTPS_PROXY']
-if 'http_proxy' in os.environ:
-    del os.environ['http_proxy']
-if 'https_proxy' in os.environ:
-    del os.environ['https_proxy']
+# API 설정 상태 체크
+def check_api_keys():
+    """API 키가 설정되어 있는지 확인하고 상태를 세션에 저장"""
+    try:
+        if "OPENAI_API_KEY" in st.secrets and st.secrets["OPENAI_API_KEY"]:
+            st.session_state.openai_available = True
+        else:
+            st.session_state.openai_available = False
+            
+        if "ANTHROPIC_API_KEY" in st.secrets and st.secrets["ANTHROPIC_API_KEY"]:
+            st.session_state.anthropic_available = True
+        else:
+            st.session_state.anthropic_available = False
+            
+        if "GOOGLE_API_KEY" in st.secrets and st.secrets["GOOGLE_API_KEY"]:
+            st.session_state.gemini_available = True
+        else:
+            st.session_state.gemini_available = False
+            
+        if "DEEPSEEK_API_KEY" in st.secrets and st.secrets["DEEPSEEK_API_KEY"]:
+            st.session_state.deepseek_available = True
+        else:
+            st.session_state.deepseek_available = False
+            
+        if "GROK_API_KEY" in st.secrets and st.secrets["GROK_API_KEY"]:
+            st.session_state.grok_available = True
+        else:
+            st.session_state.grok_available = False
+    except Exception as e:
+        st.error(f"API 키 확인 중 오류가 발생했습니다: {str(e)}")
+        st.session_state.openai_available = False
+        st.session_state.anthropic_available = False
+        st.session_state.gemini_available = False
+        st.session_state.deepseek_available = False
+        st.session_state.grok_available = False
 
-# API 클라이언트 초기화를 전역 범위로 설정하고 기본값 설정
-openai_client = None
-anthropic_client = None
-deepseek_client = None
-grok_client = None
+# API 호출 함수들 - 직접 HTTP 요청 사용
+def call_openai_api(prompt):
+    """OpenAI API를 직접 HTTP 요청으로 호출"""
+    try:
+        api_key = st.secrets["OPENAI_API_KEY"]
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        payload = {
+            "model": "gpt-4",
+            "messages": [
+                {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.7
+        }
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=payload
+        )
+        if response.status_code == 200:
+            return response.json()["choices"][0]["message"]["content"]
+        else:
+            st.error(f"OpenAI API 호출 오류: {response.status_code} - {response.text}")
+            return f"OpenAI API 호출 오류: {response.status_code}"
+    except Exception as e:
+        st.error(f"OpenAI API 호출 중 오류 발생: {str(e)}")
+        return f"오류: {str(e)}"
 
-# API 클라이언트 초기화 시도
-try:
-    # OpenAI 클라이언트 초기화
-    api_key = st.secrets["OPENAI_API_KEY"]
-    openai_client = OpenAI(api_key=api_key)
-    st.session_state.openai_initialized = True
-except Exception as e:
-    st.session_state.openai_initialized = False
-    st.warning(f"OpenAI API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
+def call_anthropic_api(prompt):
+    """Anthropic API를 직접 HTTP 요청으로 호출"""
+    try:
+        api_key = st.secrets["ANTHROPIC_API_KEY"]
+        headers = {
+            "Content-Type": "application/json",
+            "X-API-Key": api_key,
+            "anthropic-version": "2023-01-01"
+        }
+        payload = {
+            "model": "claude-3-opus-20240229",
+            "max_tokens": 2000,
+            "temperature": 0.7,
+            "system": "당신은 광고 및 마케팅 전략 전문가입니다.",
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers=headers,
+            json=payload
+        )
+        if response.status_code == 200:
+            return response.json()["content"][0]["text"]
+        else:
+            st.error(f"Anthropic API 호출 오류: {response.status_code} - {response.text}")
+            return f"Anthropic API 호출 오류: {response.status_code}"
+    except Exception as e:
+        st.error(f"Anthropic API 호출 중 오류 발생: {str(e)}")
+        return f"오류: {str(e)}"
 
-try:
-    # Anthropic 클라이언트 초기화
-    api_key = st.secrets["ANTHROPIC_API_KEY"]
-    anthropic_client = Anthropic(api_key=api_key)
-    st.session_state.anthropic_initialized = True
-except Exception as e:
-    st.session_state.anthropic_initialized = False
-    st.warning(f"Anthropic API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
+def call_gemini_api(prompt):
+    """Google Gemini API를 직접 HTTP 요청으로 호출"""
+    try:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+        
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "contents": [{
+                "parts": [{
+                    "text": prompt
+                }]
+            }],
+            "generationConfig": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+            }
+        }
+        
+        response = requests.post(url, headers=headers, json=payload)
+        
+        if response.status_code == 200:
+            result = response.json()
+            try:
+                return result["candidates"][0]["content"]["parts"][0]["text"]
+            except (KeyError, IndexError) as e:
+                st.error(f"Gemini API 응답 파싱 오류: {str(e)}")
+                return f"Gemini API 응답 파싱 오류: {str(e)}"
+        else:
+            st.error(f"Gemini API 호출 오류: {response.status_code} - {response.text}")
+            return f"Gemini API 호출 오류: {response.status_code}"
+    except Exception as e:
+        st.error(f"Gemini API 호출 중 오류 발생: {str(e)}")
+        return f"오류: {str(e)}"
 
-try:
-    # Google Gemini 초기화
-    api_key = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=api_key)
-    st.session_state.gemini_initialized = True
-except Exception as e:
-    st.session_state.gemini_initialized = False
-    st.warning(f"Google Gemini API 초기화 중 오류가 발생했습니다: {str(e)}")
+def call_deepseek_api(prompt):
+    """DeepSeek API를 직접 HTTP 요청으로 호출"""
+    try:
+        api_key = st.secrets["DEEPSEEK_API_KEY"]
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
+                {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.7
+        }
+        response = requests.post(
+            "https://api.deepseek.com/v1/chat/completions",
+            headers=headers,
+            json=payload
+        )
+        if response.status_code == 200:
+            return response.json()["choices"][0]["message"]["content"]
+        else:
+            st.error(f"DeepSeek API 호출 오류: {response.status_code} - {response.text}")
+            return f"DeepSeek API 호출 오류: {response.status_code}"
+    except Exception as e:
+        st.error(f"DeepSeek API 호출 중 오류 발생: {str(e)}")
+        return f"오류: {str(e)}"
 
-try:
-    # DeepSeek 클라이언트 초기화
-    api_key = st.secrets["DEEPSEEK_API_KEY"]
-    deepseek_client = OpenAI(
-        api_key=api_key,
-        base_url="https://api.deepseek.com"
-    )
-    st.session_state.deepseek_initialized = True
-except Exception as e:
-    st.session_state.deepseek_initialized = False
-    st.warning(f"DeepSeek API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
+def call_grok_api(prompt):
+    """Grok API를 직접 HTTP 요청으로 호출"""
+    try:
+        api_key = st.secrets["GROK_API_KEY"]
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        payload = {
+            "model": "grok-1",
+            "messages": [
+                {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다. 독특하고 창의적인 시각으로 분석해주세요."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.8
+        }
+        response = requests.post(
+            "https://api.x.ai/v1/chat/completions",
+            headers=headers,
+            json=payload
+        )
+        if response.status_code == 200:
+            return response.json()["choices"][0]["message"]["content"]
+        else:
+            st.error(f"Grok API 호출 오류: {response.status_code} - {response.text}")
+            return f"Grok API 호출 오류: {response.status_code}"
+    except Exception as e:
+        st.error(f"Grok API 호출 중 오류 발생: {str(e)}")
+        return f"오류: {str(e)}"
 
-try:
-    # Grok 클라이언트 초기화
-    api_key = st.secrets["GROK_API_KEY"]
-    grok_client = OpenAI(
-        api_key=api_key,
-        base_url="https://api.x.ai/v1"
-    )
-    st.session_state.grok_initialized = True
-except Exception as e:
-    st.session_state.grok_initialized = False
-    st.warning(f"Grok API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
+# AI 모델 호출 함수 (통합 인터페이스)
+def get_ai_analysis(prompt, model_name):
+    """모델 유형에 따라 적절한 API 호출 함수를 선택하여 실행"""
+    try:
+        if model_name == "ChatGPT":
+            if not st.session_state.openai_available:
+                st.error("OpenAI API 설정이 필요합니다.")
+                return "OpenAI API 설정이 필요합니다. API 키를 확인해주세요."
+            return call_openai_api(prompt)
+        
+        elif model_name == "Claude":
+            if not st.session_state.anthropic_available:
+                st.error("Anthropic API 설정이 필요합니다.")
+                return "Anthropic API 설정이 필요합니다. API 키를 확인해주세요."
+            return call_anthropic_api(prompt)
+        
+        elif model_name == "Gemini":
+            if not st.session_state.gemini_available:
+                st.error("Google Gemini API 설정이 필요합니다.")
+                return "Google Gemini API 설정이 필요합니다. API 키를 확인해주세요."
+            return call_gemini_api(prompt)
+        
+        elif model_name == "DeepSeek":
+            if not st.session_state.deepseek_available:
+                st.error("DeepSeek API 설정이 필요합니다.")
+                return "DeepSeek API 설정이 필요합니다. API 키를 확인해주세요."
+            return call_deepseek_api(prompt)
+        
+        elif model_name == "Grok":
+            if not st.session_state.grok_available:
+                st.error("Grok API 설정이 필요합니다.")
+                return "Grok API 설정이 필요합니다. API 키를 확인해주세요."
+            return call_grok_api(prompt)
+        
+        else:
+            st.error(f"지원되지 않는 모델: {model_name}")
+            return f"지원되지 않는 모델: {model_name}"
+    
+    except Exception as e:
+        error_msg = f"{model_name} 모델 호출 중 오류가 발생했습니다: {str(e)}"
+        st.error(error_msg)
+        return f"오류: {error_msg}"
+
+# 캠페인 정보 입력 화면에서 적절한 모델 목록 가져오기
+def get_available_models():
+    available_models = []
+    if st.session_state.get('openai_available', False):
+        available_models.append("ChatGPT")
+    if st.session_state.get('anthropic_available', False):
+        available_models.append("Claude")
+    if st.session_state.get('gemini_available', False):
+        available_models.append("Gemini")
+    if st.session_state.get('deepseek_available', False):
+        available_models.append("DeepSeek")
+    if st.session_state.get('grok_available', False):
+        available_models.append("Grok")
+    
+    # 사용 가능한 모델이 없으면 모든 모델 포함(선택 옵션은 제공)
+    if not available_models:
+        available_models = ["ChatGPT", "Gemini", "Claude", "DeepSeek", "Grok"]
+    
+    return available_models
+
+# API 키 확인
+check_api_keys()
 
 # CSS 스타일 적용 (Google Performance Max 스타일 + 다크 모드 호환)
 st.markdown("""
@@ -248,116 +437,9 @@ def show_progress():
                 st.markdown(f"<div style='text-align: center; color: rgba(150, 150, 150, 0.8); font-weight: 400;'>{step}</div>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-# AI 모델 호출 함수
-def get_ai_analysis(prompt, model_name):
-    try:
-        if model_name == "ChatGPT":
-            if not st.session_state.openai_initialized:
-                st.error("OpenAI API 설정이 필요합니다.")
-                return "OpenAI API 설정이 필요합니다. API 키를 확인해주세요."
-            
-            # 매번 새로운 클라이언트 생성    
-            api_key = st.secrets["OPENAI_API_KEY"]
-            client = OpenAI(api_key=api_key)
-            
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7,
-            )
-            return response.choices[0].message.content
-        
-        elif model_name == "Claude":
-            if not st.session_state.anthropic_initialized:
-                st.error("Anthropic API 설정이 필요합니다.")
-                return "Anthropic API 설정이 필요합니다. API 키를 확인해주세요."
-            
-            # 매번 새로운 클라이언트 생성
-            api_key = st.secrets["ANTHROPIC_API_KEY"]
-            client = Anthropic(api_key=api_key)
-            
-            response = client.messages.create(
-                model="claude-3-opus-20240229",
-                max_tokens=2000,
-                temperature=0.7,
-                system="당신은 광고 및 마케팅 전략 전문가입니다.",
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
-            )
-            return response.content[0].text
-        
-        elif model_name == "Gemini":
-            if not st.session_state.gemini_initialized:
-                st.error("Google Gemini API 설정이 필요합니다.")
-                return "Google Gemini API 설정이 필요합니다. API 키를 확인해주세요."
-            
-            # Gemini는 전역 구성을 사용함
-            model = genai.GenerativeModel('gemini-pro')
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.7,
-                )
-            )
-            return response.text
-        
-        elif model_name == "DeepSeek":
-            if not st.session_state.deepseek_initialized:
-                st.error("DeepSeek API 설정이 필요합니다.")
-                return "DeepSeek API 설정이 필요합니다. API 키를 확인해주세요."
-            
-            # 매번 새로운 클라이언트 생성
-            api_key = st.secrets["DEEPSEEK_API_KEY"]
-            client = OpenAI(
-                api_key=api_key,
-                base_url="https://api.deepseek.com"
-            )
-            
-            response = client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[
-                    {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7
-            )
-            return response.choices[0].message.content
-        
-        elif model_name == "Grok":
-            if not st.session_state.grok_initialized:
-                st.error("Grok API 설정이 필요합니다.")
-                return "Grok API 설정이 필요합니다. API 키를 확인해주세요."
-            
-            # 매번 새로운 클라이언트 생성
-            api_key = st.secrets["GROK_API_KEY"]
-            client = OpenAI(
-                api_key=api_key,
-                base_url="https://api.x.ai/v1"
-            )
-            
-            response = client.chat.completions.create(
-                model="grok-1",
-                messages=[
-                    {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다. 독특하고 창의적인 시각으로 분석해주세요."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.8
-            )
-            return response.choices[0].message.content
-    
-    except Exception as e:
-        error_msg = f"{model_name} 모델 호출 중 오류가 발생했습니다: {str(e)}"
-        st.error(error_msg)
-        return f"오류: {error_msg}"
-
 # 광고 분석 결과 처리 및 파싱
 def parse_ad_recommendations(analysis_text):
-    # 여기서는 분석 텍스트에서 핵심 정보만 추출하는 간단한 예시입니다.
-    # 실제 구현에서는 LLM의 구조화된 출력이나 정규식을 사용할 수 있습니다.
+    """AI 분석 텍스트에서 키 정보를 추출합니다."""
     try:
         lines = analysis_text.strip().split('\n')
         
@@ -373,14 +455,76 @@ def parse_ad_recommendations(analysis_text):
         
         # 광고 유형 찾기 (검색 vs 디스플레이)
         for line in lines:
-            if "검색광고" in line and "추천" in line:
+            if "검색광고" in line and ("추천" in line or "적합" in line or "적절" in line):
                 ad_type = "검색광고"
                 break
-            elif "디스플레이광고" in line and "추천" in line:
+            elif "디스플레이광고" in line and ("추천" in line or "적합" in line or "적절" in line):
                 ad_type = "디스플레이광고"
                 break
+            
+        # 매체별 예산 배분 비율 시도
+        try:
+            # 매체 배분 섹션 찾기
+            distribution_section = False
+            for i, line in enumerate(lines):
+                if ("예산 배분" in line or "예산 분배" in line or "비율" in line) and ("매체" in line or "Google" in line or "Meta" in line):
+                    distribution_section = True
+                    # 다음 5-10줄 검사
+                    for j in range(i+1, min(i+10, len(lines))):
+                        line_j = lines[j]
+                        
+                        # Google/구글 비율 찾기
+                        if any(term in line_j for term in ["Google", "구글"]):
+                            for percent in range(5, 96, 5):  # 5% ~ 95% 스캔
+                                if f"{percent}%" in line_j or f"{percent} %" in line_j:
+                                    media_distribution["Google"] = percent
+                                    break
+                        
+                        # Meta/페이스북 비율 찾기
+                        if any(term in line_j for term in ["Meta", "페이스북", "Facebook", "인스타그램", "Instagram"]):
+                            for percent in range(5, 96, 5):
+                                if f"{percent}%" in line_j or f"{percent} %" in line_j:
+                                    media_distribution["Meta"] = percent
+                                    break
+                        
+                        # Naver/네이버 비율 찾기
+                        if any(term in line_j for term in ["Naver", "네이버"]):
+                            for percent in range(5, 96, 5):
+                                if f"{percent}%" in line_j or f"{percent} %" in line_j:
+                                    media_distribution["Naver"] = percent
+                                    break
+                        
+                        # Kakao/카카오 비율 찾기
+                        if any(term in line_j for term in ["Kakao", "카카오"]):
+                            for percent in range(5, 96, 5):
+                                if f"{percent}%" in line_j or f"{percent} %" in line_j:
+                                    media_distribution["Kakao"] = percent
+                                    break
+                        
+                        # TTD 비율 찾기
+                        if "TTD" in line_j:
+                            for percent in range(5, 96, 5):
+                                if f"{percent}%" in line_j or f"{percent} %" in line_j:
+                                    media_distribution["TTD"] = percent
+                                    break
+                    break
+        except Exception as e:
+            # 파싱 실패 시 기본값 유지
+            st.warning(f"매체 배분 비율 파싱 중 오류: {str(e)}")
         
-        # 더 정교한 파싱 로직 구현 가능
+        # 합이 100%가 되도록 조정
+        total = sum(media_distribution.values())
+        if total != 100:
+            scale_factor = 100 / total
+            for key in media_distribution:
+                media_distribution[key] = round(media_distribution[key] * scale_factor)
+            
+            # 반올림으로 인한 오차 보정
+            diff = 100 - sum(media_distribution.values())
+            if diff != 0:
+                # 가장 큰 값 찾아서 차이 더하기
+                max_key = max(media_distribution, key=media_distribution.get)
+                media_distribution[max_key] += diff
         
         return {
             "ad_type": ad_type,
@@ -418,9 +562,6 @@ def generate_simulation_results(campaign_data, ad_type):
     # 브랜드 설명 길이에 따른 조정 (더 자세한 설명 = 더 좋은 타겟팅)
     description_factor = min(1 + len(campaign_data["brand_description"]) / 1000, 1.2)
     
-    # 임의성 추가
-    random_factor = random.uniform(0.9, 1.1)
-    
     # 시뮬레이션 기간 (주)
     weeks = 12
     
@@ -452,26 +593,6 @@ def generate_simulation_results(campaign_data, ad_type):
         })
     
     return weekly_data
-
-# 캠페인 정보 입력 화면에서 적절한 모델 목록 가져오기
-def get_available_models():
-    available_models = []
-    if st.session_state.get('openai_initialized', False):
-        available_models.append("ChatGPT")
-    if st.session_state.get('anthropic_initialized', False):
-        available_models.append("Claude")
-    if st.session_state.get('gemini_initialized', False):
-        available_models.append("Gemini")
-    if st.session_state.get('deepseek_initialized', False):
-        available_models.append("DeepSeek")
-    if st.session_state.get('grok_initialized', False):
-        available_models.append("Grok")
-    
-    # 사용 가능한 모델이 없으면 OpenAI를 기본값으로 포함
-    if not available_models:
-        available_models = ["ChatGPT", "Gemini"]
-    
-    return available_models
 
 # 단계 1: 캠페인 정보 입력 화면
 def render_step_1():
@@ -548,15 +669,15 @@ def render_step_2():
     # 선택된, 초기화된 모델만 필터링
     valid_models = []
     for model_name in campaign_data["selected_models"]:
-        if model_name == "ChatGPT" and st.session_state.get('openai_initialized', False):
+        if model_name == "ChatGPT" and st.session_state.get('openai_available', False):
             valid_models.append(model_name)
-        elif model_name == "Claude" and st.session_state.get('anthropic_initialized', False):
+        elif model_name == "Claude" and st.session_state.get('anthropic_available', False):
             valid_models.append(model_name)
-        elif model_name == "Gemini" and st.session_state.get('gemini_initialized', False):
+        elif model_name == "Gemini" and st.session_state.get('gemini_available', False):
             valid_models.append(model_name)
-        elif model_name == "DeepSeek" and st.session_state.get('deepseek_initialized', False):
+        elif model_name == "DeepSeek" and st.session_state.get('deepseek_available', False):
             valid_models.append(model_name)
-        elif model_name == "Grok" and st.session_state.get('grok_initialized', False):
+        elif model_name == "Grok" and st.session_state.get('grok_available', False):
             valid_models.append(model_name)
     
     # 유효한 모델이 없으면 경고 표시
@@ -616,8 +737,6 @@ def render_step_2():
     st.session_state.analysis_results = analysis_results
     st.session_state.step = 3
     st.rerun()
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # 단계 3: 분석 결과 및 시뮬레이션 화면
 def render_step_3():
