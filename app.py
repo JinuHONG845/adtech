@@ -1,6 +1,6 @@
 import streamlit as st
-import openai
-import anthropic
+from openai import OpenAI
+from anthropic import Anthropic
 import google.generativeai as genai
 
 # Set page config first
@@ -11,8 +11,8 @@ st.set_page_config(
 )
 
 # Initialize API clients using Streamlit secrets
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-anthropic_client = anthropic.Client(api_key=st.secrets["ANTHROPIC_API_KEY"])
+openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+anthropic_client = Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Title and description
@@ -62,7 +62,7 @@ if submitted:
         # GPT-4
         if "GPT-4" in selected_models:
             try:
-                response = openai.ChatCompletion.create(
+                response = openai_client.chat.completions.create(
                     model="gpt-4-turbo-preview",
                     messages=[
                         {"role": "system", "content": "당신은 광고 매체 전문가입니다."},
@@ -81,10 +81,12 @@ if submitted:
                     model="claude-3-sonnet-20240229",
                     max_tokens=1000,
                     messages=[
-                        {"role": "user", "content": prompt}
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
                     ],
-                    temperature=0.7,
-                    system="당신은 광고 매체 전문가입니다."
+                    temperature=0.7
                 )
                 results["Claude"] = response.content[0].text
             except Exception as e:
@@ -98,7 +100,7 @@ if submitted:
                     prompt,
                     generation_config=genai.types.GenerationConfig(
                         temperature=0.7,
-                        max_output_tokens=1000,
+                        max_output_tokens=1000
                     )
                 )
                 results["Gemini"] = response.text
