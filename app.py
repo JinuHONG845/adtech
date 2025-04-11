@@ -67,8 +67,7 @@ else:
     progress = 100
 progress_bar = st.progress(progress)
 
-# Initialize API clients
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# Configure Gemini
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Step 1: Campaign Information
@@ -148,6 +147,8 @@ elif st.session_state.current_step == 2:
                         # GPT-4
                         if "GPT-4" in selected_models:
                             try:
+                                client = OpenAI()
+                                client.api_key = st.secrets["OPENAI_API_KEY"]
                                 response = client.chat.completions.create(
                                     model="gpt-4-turbo-preview",
                                     messages=[
