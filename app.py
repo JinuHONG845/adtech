@@ -1,3 +1,4 @@
 import streamlit as st
 
-st.write("Hello") 
+# 간단한 앱
+st.write("Hello World!") 
