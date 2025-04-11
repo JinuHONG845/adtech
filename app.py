@@ -1,33 +1,45 @@
 import streamlit as st
 from openai import OpenAI
 import google.generativeai as genai
+import os
 
-# Initialize API clients at startup
+# Initialize session state for API clients
+if 'openai_client' not in st.session_state:
+    try:
+        st.session_state.openai_client = OpenAI(
+            api_key=st.secrets["OPENAI_API_KEY"],
+            timeout=60.0,  # Set timeout
+            max_retries=2  # Set max retries
+        )
+    except Exception as e:
+        st.error(f"OpenAI 클라이언트 초기화 오류: {str(e)}")
+        st.session_state.openai_client = None
+
+# Configure Gemini
 try:
-    openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 except Exception as e:
-    st.error(f"API 클라이언트 초기화 오류: {str(e)}")
-    openai_client = None
+    st.error(f"Gemini 설정 오류: {str(e)}")
 
 def get_gpt4_analysis(prompt):
     """GPT-4를 사용하여 분석을 수행합니다."""
-    if not openai_client:
+    if not st.session_state.openai_client:
         st.error("OpenAI 클라이언트가 초기화되지 않았습니다.")
         return None
         
     try:
-        response = openai_client.chat.completions.create(
+        response = st.session_state.openai_client.chat.completions.create(
             model="gpt-4-turbo-preview",
             messages=[
                 {"role": "system", "content": "당신은 광고 매체 전문가입니다."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.7
+            temperature=0.7,
+            timeout=30.0  # Set specific timeout for this request
         )
         return response.choices[0].message.content
     except Exception as e:
-        st.error(f"GPT-4 오류: {str(e)}")
+        st.error(f"GPT-4 분석 오류: {str(e)}")
         return None
 
 def get_gemini_analysis(prompt):
