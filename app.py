@@ -10,6 +10,7 @@ from anthropic import Anthropic
 import google.generativeai as genai
 import time
 import requests
+import os
 
 # 페이지 설정
 st.set_page_config(
@@ -19,6 +20,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# 환경 변수에서 프록시 설정 제거
+if 'HTTP_PROXY' in os.environ:
+    del os.environ['HTTP_PROXY']
+if 'HTTPS_PROXY' in os.environ:
+    del os.environ['HTTPS_PROXY']
+if 'http_proxy' in os.environ:
+    del os.environ['http_proxy']
+if 'https_proxy' in os.environ:
+    del os.environ['https_proxy']
+
 # API 클라이언트 초기화를 전역 범위로 설정하고 기본값 설정
 openai_client = None
 anthropic_client = None
@@ -27,29 +38,37 @@ grok_client = None
 
 # API 클라이언트 초기화 시도
 try:
-    openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    # OpenAI 클라이언트 초기화
+    api_key = st.secrets["OPENAI_API_KEY"]
+    openai_client = OpenAI(api_key=api_key)
     st.session_state.openai_initialized = True
 except Exception as e:
     st.session_state.openai_initialized = False
     st.warning(f"OpenAI API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
 
 try:
-    anthropic_client = Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+    # Anthropic 클라이언트 초기화
+    api_key = st.secrets["ANTHROPIC_API_KEY"]
+    anthropic_client = Anthropic(api_key=api_key)
     st.session_state.anthropic_initialized = True
 except Exception as e:
     st.session_state.anthropic_initialized = False
     st.warning(f"Anthropic API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
 
 try:
-    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    # Google Gemini 초기화
+    api_key = st.secrets["GOOGLE_API_KEY"]
+    genai.configure(api_key=api_key)
     st.session_state.gemini_initialized = True
 except Exception as e:
     st.session_state.gemini_initialized = False
     st.warning(f"Google Gemini API 초기화 중 오류가 발생했습니다: {str(e)}")
 
 try:
+    # DeepSeek 클라이언트 초기화
+    api_key = st.secrets["DEEPSEEK_API_KEY"]
     deepseek_client = OpenAI(
-        api_key=st.secrets["DEEPSEEK_API_KEY"],
+        api_key=api_key,
         base_url="https://api.deepseek.com"
     )
     st.session_state.deepseek_initialized = True
@@ -58,8 +77,10 @@ except Exception as e:
     st.warning(f"DeepSeek API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
 
 try:
+    # Grok 클라이언트 초기화
+    api_key = st.secrets["GROK_API_KEY"]
     grok_client = OpenAI(
-        api_key=st.secrets["GROK_API_KEY"],
+        api_key=api_key,
         base_url="https://api.x.ai/v1"
     )
     st.session_state.grok_initialized = True
@@ -231,11 +252,15 @@ def show_progress():
 def get_ai_analysis(prompt, model_name):
     try:
         if model_name == "ChatGPT":
-            if not st.session_state.openai_initialized or openai_client is None:
-                st.error("OpenAI API 클라이언트가 초기화되지 않았습니다.")
+            if not st.session_state.openai_initialized:
+                st.error("OpenAI API 설정이 필요합니다.")
                 return "OpenAI API 설정이 필요합니다. API 키를 확인해주세요."
-                
-            response = openai_client.chat.completions.create(
+            
+            # 매번 새로운 클라이언트 생성    
+            api_key = st.secrets["OPENAI_API_KEY"]
+            client = OpenAI(api_key=api_key)
+            
+            response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[
                     {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다."},
@@ -246,11 +271,15 @@ def get_ai_analysis(prompt, model_name):
             return response.choices[0].message.content
         
         elif model_name == "Claude":
-            if not st.session_state.anthropic_initialized or anthropic_client is None:
-                st.error("Anthropic API 클라이언트가 초기화되지 않았습니다.")
+            if not st.session_state.anthropic_initialized:
+                st.error("Anthropic API 설정이 필요합니다.")
                 return "Anthropic API 설정이 필요합니다. API 키를 확인해주세요."
-                
-            response = anthropic_client.messages.create(
+            
+            # 매번 새로운 클라이언트 생성
+            api_key = st.secrets["ANTHROPIC_API_KEY"]
+            client = Anthropic(api_key=api_key)
+            
+            response = client.messages.create(
                 model="claude-3-opus-20240229",
                 max_tokens=2000,
                 temperature=0.7,
@@ -263,9 +292,10 @@ def get_ai_analysis(prompt, model_name):
         
         elif model_name == "Gemini":
             if not st.session_state.gemini_initialized:
-                st.error("Google Gemini API가 초기화되지 않았습니다.")
+                st.error("Google Gemini API 설정이 필요합니다.")
                 return "Google Gemini API 설정이 필요합니다. API 키를 확인해주세요."
-                
+            
+            # Gemini는 전역 구성을 사용함
             model = genai.GenerativeModel('gemini-pro')
             response = model.generate_content(
                 prompt,
@@ -276,11 +306,18 @@ def get_ai_analysis(prompt, model_name):
             return response.text
         
         elif model_name == "DeepSeek":
-            if not st.session_state.deepseek_initialized or deepseek_client is None:
-                st.error("DeepSeek API 클라이언트가 초기화되지 않았습니다.")
+            if not st.session_state.deepseek_initialized:
+                st.error("DeepSeek API 설정이 필요합니다.")
                 return "DeepSeek API 설정이 필요합니다. API 키를 확인해주세요."
-                
-            response = deepseek_client.chat.completions.create(
+            
+            # 매번 새로운 클라이언트 생성
+            api_key = st.secrets["DEEPSEEK_API_KEY"]
+            client = OpenAI(
+                api_key=api_key,
+                base_url="https://api.deepseek.com"
+            )
+            
+            response = client.chat.completions.create(
                 model="deepseek-chat",
                 messages=[
                     {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다."},
@@ -291,11 +328,18 @@ def get_ai_analysis(prompt, model_name):
             return response.choices[0].message.content
         
         elif model_name == "Grok":
-            if not st.session_state.grok_initialized or grok_client is None:
-                st.error("Grok API 클라이언트가 초기화되지 않았습니다.")
+            if not st.session_state.grok_initialized:
+                st.error("Grok API 설정이 필요합니다.")
                 return "Grok API 설정이 필요합니다. API 키를 확인해주세요."
-                
-            response = grok_client.chat.completions.create(
+            
+            # 매번 새로운 클라이언트 생성
+            api_key = st.secrets["GROK_API_KEY"]
+            client = OpenAI(
+                api_key=api_key,
+                base_url="https://api.x.ai/v1"
+            )
+            
+            response = client.chat.completions.create(
                 model="grok-1",
                 messages=[
                     {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다. 독특하고 창의적인 시각으로 분석해주세요."},
