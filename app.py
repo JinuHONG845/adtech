@@ -3,17 +3,17 @@ import openai
 import anthropic
 import google.generativeai as genai
 
-# Initialize API clients using Streamlit secrets
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-anthropic_client = anthropic.Client(api_key=st.secrets["ANTHROPIC_API_KEY"])
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-
-# Set page config
+# Set page config first
 st.set_page_config(
     page_title="AI 기반 매체 컨설팅",
     page_icon="📊",
     layout="wide"
 )
+
+# Initialize API clients using Streamlit secrets
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+anthropic_client = anthropic.Client(api_key=st.secrets["ANTHROPIC_API_KEY"])
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Title and description
 st.title("AI 기반 매체 컨설팅")
