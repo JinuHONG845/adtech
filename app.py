@@ -895,24 +895,25 @@ def render_step_3():
         
         with tab3:
             # 스타일링 옵션 추가
+            # 먼저 DataFrame의 열 이름을 변경한 후 스타일 적용
+            renamed_data = sim_data.rename(columns={
+                'week': '주차',
+                'impressions': '노출 수',
+                'reach': '도달률',
+                'clicks': '클릭 수',
+                'ctr': '클릭률',
+                'conversions': '전환 수',
+                'conversion_rate': '전환율'
+            })
+            
             st.dataframe(
-                sim_data.style
-                .format({
-                    'impressions': '{:,.0f}',
-                    'reach': '{:.1%}',
-                    'clicks': '{:,.0f}',
-                    'ctr': '{:.2%}',
-                    'conversions': '{:,.0f}',
-                    'conversion_rate': '{:.2%}'
-                })
-                .rename(columns={
-                    'week': '주차',
-                    'impressions': '노출 수',
-                    'reach': '도달률',
-                    'clicks': '클릭 수',
-                    'ctr': '클릭률',
-                    'conversions': '전환 수',
-                    'conversion_rate': '전환율'
+                renamed_data.style.format({
+                    '노출 수': '{:,.0f}',
+                    '도달률': '{:.1%}',
+                    '클릭 수': '{:,.0f}',
+                    '클릭률': '{:.2%}',
+                    '전환 수': '{:,.0f}',
+                    '전환율': '{:.2%}'
                 }),
                 use_container_width=True
             )
