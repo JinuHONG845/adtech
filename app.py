@@ -2,6 +2,50 @@ import streamlit as st
 from openai import OpenAI
 import google.generativeai as genai
 
+# Initialize API clients at startup
+try:
+    openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+except Exception as e:
+    st.error(f"API 클라이언트 초기화 오류: {str(e)}")
+    openai_client = None
+
+def get_gpt4_analysis(prompt):
+    """GPT-4를 사용하여 분석을 수행합니다."""
+    if not openai_client:
+        st.error("OpenAI 클라이언트가 초기화되지 않았습니다.")
+        return None
+        
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[
+                {"role": "system", "content": "당신은 광고 매체 전문가입니다."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        st.error(f"GPT-4 오류: {str(e)}")
+        return None
+
+def get_gemini_analysis(prompt):
+    """Gemini를 사용하여 분석을 수행합니다."""
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.7,
+                max_output_tokens=1000
+            )
+        )
+        return response.text
+    except Exception as e:
+        st.error(f"Gemini 오류: {str(e)}")
+        return None
+
 # Set page config
 st.set_page_config(
     page_title="AI 기반 매체 컨설팅",
@@ -80,34 +124,14 @@ if st.session_state.step == "input":
                         results = {}
 
                         if "GPT-4" in selected_models:
-                            try:
-                                client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-                                response = client.chat.completions.create(
-                                    model="gpt-4-turbo-preview",
-                                    messages=[
-                                        {"role": "system", "content": "당신은 광고 매체 전문가입니다."},
-                                        {"role": "user", "content": prompt}
-                                    ],
-                                    temperature=0.7
-                                )
-                                results["GPT-4"] = response.choices[0].message.content
-                            except Exception as e:
-                                st.error(f"GPT-4 오류: {str(e)}")
+                            gpt4_result = get_gpt4_analysis(prompt)
+                            if gpt4_result:
+                                results["GPT-4"] = gpt4_result
 
                         if "Gemini" in selected_models:
-                            try:
-                                genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-                                model = genai.GenerativeModel('gemini-pro')
-                                response = model.generate_content(
-                                    prompt,
-                                    generation_config=genai.types.GenerationConfig(
-                                        temperature=0.7,
-                                        max_output_tokens=1000
-                                    )
-                                )
-                                results["Gemini"] = response.text
-                            except Exception as e:
-                                st.error(f"Gemini 오류: {str(e)}")
+                            gemini_result = get_gemini_analysis(prompt)
+                            if gemini_result:
+                                results["Gemini"] = gemini_result
 
                         if results:
                             st.session_state.results = results
