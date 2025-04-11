@@ -1,19 +1,14 @@
 import streamlit as st
+import os
 from openai import OpenAI
-from anthropic import Anthropic
 import google.generativeai as genai
 
-# Set page config first
+# Set page config
 st.set_page_config(
     page_title="AI 기반 매체 컨설팅",
     page_icon="📊",
     layout="wide"
 )
-
-# Initialize API clients using Streamlit secrets
-openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-anthropic_client = Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Title and description
 st.title("AI 기반 매체 컨설팅")
@@ -27,7 +22,7 @@ st.markdown("""
 st.sidebar.title("LLM 선택")
 selected_models = st.sidebar.multiselect(
     "사용할 AI 모델을 선택하세요",
-    ["GPT-4", "Claude", "Gemini"],
+    ["GPT-4", "Gemini"],
     default=["GPT-4"]
 )
 
@@ -62,7 +57,8 @@ if submitted:
         # GPT-4
         if "GPT-4" in selected_models:
             try:
-                response = openai_client.chat.completions.create(
+                client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+                response = client.chat.completions.create(
                     model="gpt-4-turbo-preview",
                     messages=[
                         {"role": "system", "content": "당신은 광고 매체 전문가입니다."},
@@ -74,27 +70,10 @@ if submitted:
             except Exception as e:
                 st.error(f"GPT-4 오류: {str(e)}")
 
-        # Claude
-        if "Claude" in selected_models:
-            try:
-                response = anthropic_client.messages.create(
-                    model="claude-3-sonnet-20240229",
-                    max_tokens=1000,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ],
-                    temperature=0.7
-                )
-                results["Claude"] = response.content[0].text
-            except Exception as e:
-                st.error(f"Claude 오류: {str(e)}")
-
         # Gemini
         if "Gemini" in selected_models:
             try:
+                genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
                 model = genai.GenerativeModel('gemini-pro')
                 response = model.generate_content(
                     prompt,
