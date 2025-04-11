@@ -12,12 +12,7 @@ st.set_page_config(
 
 # Initialize API clients using Streamlit secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-anthropic_client = anthropic.Anthropic(
-    api_key=st.secrets["ANTHROPIC_API_KEY"],
-    timeout=30.0,
-    max_retries=3,
-    http_client=None
-)
+anthropic_client = anthropic.Client(api_key=st.secrets["ANTHROPIC_API_KEY"])
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Title and description
