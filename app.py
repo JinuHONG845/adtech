@@ -75,8 +75,17 @@ def call_openai_api(prompt):
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
         else:
-            st.error(f"OpenAI API 호출 오류: {response.status_code} - {response.text}")
-            return f"OpenAI API 호출 오류: {response.status_code}"
+            error_message = f"OpenAI API 호출 오류: {response.status_code}"
+            if response.status_code == 401:
+                error_message = "OpenAI API 키가 유효하지 않거나 만료되었습니다. API 키를 확인해주세요."
+            elif response.status_code == 400:
+                error_details = response.json().get("error", {}).get("message", "알 수 없는 오류")
+                error_message = f"OpenAI API 요청 오류: {error_details}"
+            elif response.status_code == 429:
+                error_message = "OpenAI API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요."
+            
+            st.error(error_message)
+            return f"오류: {error_message}"
     except Exception as e:
         st.error(f"OpenAI API 호출 중 오류 발생: {str(e)}")
         return f"오류: {str(e)}"
@@ -107,8 +116,17 @@ def call_anthropic_api(prompt):
         if response.status_code == 200:
             return response.json()["content"][0]["text"]
         else:
-            st.error(f"Anthropic API 호출 오류: {response.status_code} - {response.text}")
-            return f"Anthropic API 호출 오류: {response.status_code}"
+            error_message = f"Anthropic API 호출 오류: {response.status_code}"
+            if response.status_code == 401:
+                error_message = "Anthropic API 키가 유효하지 않거나 만료되었습니다. API 키를 확인해주세요."
+            elif response.status_code == 400:
+                error_details = response.json().get("error", {}).get("message", "알 수 없는 오류")
+                error_message = f"Anthropic API 요청 오류: {error_details}"
+            elif response.status_code == 429:
+                error_message = "Anthropic API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요."
+            
+            st.error(error_message)
+            return f"오류: {error_message}"
     except Exception as e:
         st.error(f"Anthropic API 호출 중 오류 발생: {str(e)}")
         return f"오류: {str(e)}"
@@ -145,8 +163,17 @@ def call_gemini_api(prompt):
                 st.error(f"Gemini API 응답 파싱 오류: {str(e)}")
                 return f"Gemini API 응답 파싱 오류: {str(e)}"
         else:
-            st.error(f"Gemini API 호출 오류: {response.status_code} - {response.text}")
-            return f"Gemini API 호출 오류: {response.status_code}"
+            error_message = f"Gemini API 호출 오류: {response.status_code}"
+            if response.status_code == 400:
+                error_details = response.json().get("error", {}).get("message", "알 수 없는 오류")
+                error_message = f"Gemini API 요청 오류: {error_details}"
+            elif response.status_code == 403:
+                error_message = "Gemini API 키가 유효하지 않거나 권한이 없습니다. API 키를 확인해주세요."
+            elif response.status_code == 429:
+                error_message = "Gemini API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요."
+            
+            st.error(error_message)
+            return f"오류: {error_message}"
     except Exception as e:
         st.error(f"Gemini API 호출 중 오류 발생: {str(e)}")
         return f"오류: {str(e)}"
@@ -175,8 +202,17 @@ def call_deepseek_api(prompt):
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
         else:
-            st.error(f"DeepSeek API 호출 오류: {response.status_code} - {response.text}")
-            return f"DeepSeek API 호출 오류: {response.status_code}"
+            error_message = f"DeepSeek API 호출 오류: {response.status_code}"
+            if response.status_code == 401:
+                error_message = "DeepSeek API 키가 유효하지 않거나 만료되었습니다. API 키를 확인해주세요."
+            elif response.status_code == 400:
+                error_details = response.json().get("error", {}).get("message", "알 수 없는 오류")
+                error_message = f"DeepSeek API 요청 오류: {error_details}"
+            elif response.status_code == 429:
+                error_message = "DeepSeek API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요."
+            
+            st.error(error_message)
+            return f"오류: {error_message}"
     except Exception as e:
         st.error(f"DeepSeek API 호출 중 오류 발생: {str(e)}")
         return f"오류: {str(e)}"
@@ -205,8 +241,17 @@ def call_grok_api(prompt):
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
         else:
-            st.error(f"Grok API 호출 오류: {response.status_code} - {response.text}")
-            return f"Grok API 호출 오류: {response.status_code}"
+            error_message = f"Grok API 호출 오류: {response.status_code}"
+            if response.status_code == 401:
+                error_message = "Grok API 키가 유효하지 않거나 만료되었습니다. API 키를 확인해주세요."
+            elif response.status_code == 400:
+                error_details = response.json().get("error", {}).get("message", "알 수 없는 오류")
+                error_message = f"Grok API 요청 오류: {error_details}"
+            elif response.status_code == 429:
+                error_message = "Grok API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요."
+            
+            st.error(error_message)
+            return f"오류: {error_message}"
     except Exception as e:
         st.error(f"Grok API 호출 중 오류 발생: {str(e)}")
         return f"오류: {str(e)}"
