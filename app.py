@@ -6,8 +6,10 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import random
 from openai import OpenAI
-import google.generativeai as genai
 from anthropic import Anthropic
+import google.generativeai as genai
+import time
+import requests
 
 # 페이지 설정
 st.set_page_config(
@@ -16,6 +18,22 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# API 클라이언트 초기화
+try:
+    openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    anthropic_client = Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    deepseek_client = OpenAI(
+        api_key=st.secrets["DEEPSEEK_API_KEY"],
+        base_url="https://api.deepseek.com"
+    )
+    grok_client = OpenAI(
+        api_key=st.secrets["GROK_API_KEY"],
+        base_url="https://api.x.ai/v1"
+    )
+except Exception as e:
+    st.error(f"API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
 
 # CSS 스타일 적용 (Google Performance Max 스타일)
 st.markdown("""
@@ -131,8 +149,7 @@ def show_progress():
 def get_ai_analysis(prompt, model_name):
     try:
         if model_name == "ChatGPT":
-            client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-            response = client.chat.completions.create(
+            response = openai_client.chat.completions.create(
                 model="gpt-4",
                 messages=[
                     {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다."},
@@ -143,8 +160,7 @@ def get_ai_analysis(prompt, model_name):
             return response.choices[0].message.content
         
         elif model_name == "Claude":
-            client = Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
-            response = client.messages.create(
+            response = anthropic_client.messages.create(
                 model="claude-3-opus-20240229",
                 max_tokens=2000,
                 temperature=0.7,
@@ -156,7 +172,6 @@ def get_ai_analysis(prompt, model_name):
             return response.content[0].text
         
         elif model_name == "Gemini":
-            genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
             model = genai.GenerativeModel('gemini-pro')
             response = model.generate_content(
                 prompt,
@@ -166,16 +181,25 @@ def get_ai_analysis(prompt, model_name):
             )
             return response.text
         
-        elif model_name == "Grok":
-            # 현재 Grok API는 직접 사용 불가능하므로 ChatGPT로 대체
-            client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-            response = client.chat.completions.create(
-                model="gpt-4",
+        elif model_name == "DeepSeek":
+            response = deepseek_client.chat.completions.create(
+                model="deepseek-chat",
                 messages=[
-                    {"role": "system", "content": "당신은 Grok AI입니다. 광고 및 마케팅 전략 전문가로서 조금 더 독특하고 창의적인 시각으로 분석해주세요."},
+                    {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.9,
+                temperature=0.7
+            )
+            return response.choices[0].message.content
+        
+        elif model_name == "Grok":
+            response = grok_client.chat.completions.create(
+                model="grok-1",
+                messages=[
+                    {"role": "system", "content": "당신은 광고 및 마케팅 전략 전문가입니다. 독특하고 창의적인 시각으로 분석해주세요."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.8
             )
             return response.choices[0].message.content
     
@@ -304,7 +328,7 @@ def render_step_1():
             st.markdown("### 분석에 사용할 AI 모델")
             selected_models = st.multiselect(
                 "하나 이상의 AI 모델을 선택하세요",
-                ["ChatGPT", "Claude", "Gemini", "Grok"],
+                ["ChatGPT", "Claude", "Gemini", "DeepSeek", "Grok"],
                 default=["ChatGPT"]
             )
             
