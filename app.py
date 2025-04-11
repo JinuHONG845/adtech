@@ -1,7 +1,7 @@
 import streamlit as st
-import os
-from openai import OpenAI
 import google.generativeai as genai
+import requests
+import json
 
 # Set page config
 st.set_page_config(
@@ -10,11 +10,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Set API keys
-os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
-openai_client = OpenAI()
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-
 # Title and description
 st.title("AI 기반 매체 컨설팅")
 st.markdown("""
@@ -22,6 +17,9 @@ st.markdown("""
 제품/브랜드 정보를 입력하면 검색광고와 디스플레이 광고의 적절성을 분석하고,
 주요 매체별 비중을 제안합니다.
 """)
+
+# Configure Gemini
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Sidebar for model selection
 st.sidebar.title("LLM 선택")
@@ -62,15 +60,32 @@ if submitted:
         # GPT-4
         if "GPT-4" in selected_models:
             try:
-                response = openai_client.chat.completions.create(
-                    model="gpt-4-turbo-preview",
-                    messages=[
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}"
+                }
+                
+                payload = {
+                    "model": "gpt-4-turbo-preview",
+                    "messages": [
                         {"role": "system", "content": "당신은 광고 매체 전문가입니다."},
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=0.7
+                    "temperature": 0.7
+                }
+                
+                response = requests.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers=headers,
+                    json=payload
                 )
-                results["GPT-4"] = response.choices[0].message.content
+                
+                if response.status_code == 200:
+                    response_data = response.json()
+                    results["GPT-4"] = response_data["choices"][0]["message"]["content"]
+                else:
+                    st.error(f"GPT-4 오류: API 응답 코드 {response.status_code}")
+                    
             except Exception as e:
                 st.error(f"GPT-4 오류: {str(e)}")
 
