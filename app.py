@@ -15,7 +15,8 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 anthropic_client = anthropic.Anthropic(
     api_key=st.secrets["ANTHROPIC_API_KEY"],
     timeout=30.0,
-    max_retries=3
+    max_retries=3,
+    http_client=None
 )
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
