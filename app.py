@@ -19,21 +19,53 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# API 클라이언트 초기화
+# API 클라이언트 초기화를 전역 범위로 설정하고 기본값 설정
+openai_client = None
+anthropic_client = None
+deepseek_client = None
+grok_client = None
+
+# API 클라이언트 초기화 시도
 try:
     openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    st.session_state.openai_initialized = True
+except Exception as e:
+    st.session_state.openai_initialized = False
+    st.warning(f"OpenAI API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
+
+try:
     anthropic_client = Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+    st.session_state.anthropic_initialized = True
+except Exception as e:
+    st.session_state.anthropic_initialized = False
+    st.warning(f"Anthropic API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
+
+try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    st.session_state.gemini_initialized = True
+except Exception as e:
+    st.session_state.gemini_initialized = False
+    st.warning(f"Google Gemini API 초기화 중 오류가 발생했습니다: {str(e)}")
+
+try:
     deepseek_client = OpenAI(
         api_key=st.secrets["DEEPSEEK_API_KEY"],
         base_url="https://api.deepseek.com"
     )
+    st.session_state.deepseek_initialized = True
+except Exception as e:
+    st.session_state.deepseek_initialized = False
+    st.warning(f"DeepSeek API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
+
+try:
     grok_client = OpenAI(
         api_key=st.secrets["GROK_API_KEY"],
         base_url="https://api.x.ai/v1"
     )
+    st.session_state.grok_initialized = True
 except Exception as e:
-    st.error(f"API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
+    st.session_state.grok_initialized = False
+    st.warning(f"Grok API 클라이언트 초기화 중 오류가 발생했습니다: {str(e)}")
 
 # CSS 스타일 적용 (Google Performance Max 스타일 + 다크 모드 호환)
 st.markdown("""
@@ -199,6 +231,10 @@ def show_progress():
 def get_ai_analysis(prompt, model_name):
     try:
         if model_name == "ChatGPT":
+            if not st.session_state.openai_initialized or openai_client is None:
+                st.error("OpenAI API 클라이언트가 초기화되지 않았습니다.")
+                return "OpenAI API 설정이 필요합니다. API 키를 확인해주세요."
+                
             response = openai_client.chat.completions.create(
                 model="gpt-4",
                 messages=[
@@ -210,6 +246,10 @@ def get_ai_analysis(prompt, model_name):
             return response.choices[0].message.content
         
         elif model_name == "Claude":
+            if not st.session_state.anthropic_initialized or anthropic_client is None:
+                st.error("Anthropic API 클라이언트가 초기화되지 않았습니다.")
+                return "Anthropic API 설정이 필요합니다. API 키를 확인해주세요."
+                
             response = anthropic_client.messages.create(
                 model="claude-3-opus-20240229",
                 max_tokens=2000,
@@ -222,6 +262,10 @@ def get_ai_analysis(prompt, model_name):
             return response.content[0].text
         
         elif model_name == "Gemini":
+            if not st.session_state.gemini_initialized:
+                st.error("Google Gemini API가 초기화되지 않았습니다.")
+                return "Google Gemini API 설정이 필요합니다. API 키를 확인해주세요."
+                
             model = genai.GenerativeModel('gemini-pro')
             response = model.generate_content(
                 prompt,
@@ -232,6 +276,10 @@ def get_ai_analysis(prompt, model_name):
             return response.text
         
         elif model_name == "DeepSeek":
+            if not st.session_state.deepseek_initialized or deepseek_client is None:
+                st.error("DeepSeek API 클라이언트가 초기화되지 않았습니다.")
+                return "DeepSeek API 설정이 필요합니다. API 키를 확인해주세요."
+                
             response = deepseek_client.chat.completions.create(
                 model="deepseek-chat",
                 messages=[
@@ -243,6 +291,10 @@ def get_ai_analysis(prompt, model_name):
             return response.choices[0].message.content
         
         elif model_name == "Grok":
+            if not st.session_state.grok_initialized or grok_client is None:
+                st.error("Grok API 클라이언트가 초기화되지 않았습니다.")
+                return "Grok API 설정이 필요합니다. API 키를 확인해주세요."
+                
             response = grok_client.chat.completions.create(
                 model="grok-1",
                 messages=[
@@ -254,8 +306,9 @@ def get_ai_analysis(prompt, model_name):
             return response.choices[0].message.content
     
     except Exception as e:
-        st.error(f"{model_name} 모델 호출 중 오류가 발생했습니다: {str(e)}")
-        return None
+        error_msg = f"{model_name} 모델 호출 중 오류가 발생했습니다: {str(e)}"
+        st.error(error_msg)
+        return f"오류: {error_msg}"
 
 # 광고 분석 결과 처리 및 파싱
 def parse_ad_recommendations(analysis_text):
@@ -356,6 +409,26 @@ def generate_simulation_results(campaign_data, ad_type):
     
     return weekly_data
 
+# 캠페인 정보 입력 화면에서 적절한 모델 목록 가져오기
+def get_available_models():
+    available_models = []
+    if st.session_state.get('openai_initialized', False):
+        available_models.append("ChatGPT")
+    if st.session_state.get('anthropic_initialized', False):
+        available_models.append("Claude")
+    if st.session_state.get('gemini_initialized', False):
+        available_models.append("Gemini")
+    if st.session_state.get('deepseek_initialized', False):
+        available_models.append("DeepSeek")
+    if st.session_state.get('grok_initialized', False):
+        available_models.append("Grok")
+    
+    # 사용 가능한 모델이 없으면 OpenAI를 기본값으로 포함
+    if not available_models:
+        available_models = ["ChatGPT", "Gemini"]
+    
+    return available_models
+
 # 단계 1: 캠페인 정보 입력 화면
 def render_step_1():
     st.markdown('<div class="step-container">', unsafe_allow_html=True)
@@ -377,10 +450,13 @@ def render_step_1():
                 help="예: 브랜드 인지도 향상, 웹사이트 트래픽 증가, 전환율 개선 등")
             
             st.markdown("### 분석에 사용할 AI 모델")
+            available_models = get_available_models()
+            default_models = ["ChatGPT"] if "ChatGPT" in available_models else [available_models[0]] if available_models else []
+            
             selected_models = st.multiselect(
                 "하나 이상의 AI 모델을 선택하세요",
-                ["ChatGPT", "Claude", "Gemini", "DeepSeek", "Grok"],
-                default=["ChatGPT", "Gemini"]
+                available_models,
+                default=default_models
             )
             
             submitted = st.form_submit_button("분석 시작", type="primary")
@@ -425,6 +501,28 @@ def render_step_2():
     st.markdown('<div class="step-container">', unsafe_allow_html=True)
     st.markdown("### AI 분석 중...")
     
+    # 선택된, 초기화된 모델만 필터링
+    valid_models = []
+    for model_name in campaign_data["selected_models"]:
+        if model_name == "ChatGPT" and st.session_state.get('openai_initialized', False):
+            valid_models.append(model_name)
+        elif model_name == "Claude" and st.session_state.get('anthropic_initialized', False):
+            valid_models.append(model_name)
+        elif model_name == "Gemini" and st.session_state.get('gemini_initialized', False):
+            valid_models.append(model_name)
+        elif model_name == "DeepSeek" and st.session_state.get('deepseek_initialized', False):
+            valid_models.append(model_name)
+        elif model_name == "Grok" and st.session_state.get('grok_initialized', False):
+            valid_models.append(model_name)
+    
+    # 유효한 모델이 없으면 경고 표시
+    if not valid_models:
+        st.warning("선택하신 모델 중 초기화에 성공한 모델이 없습니다. 다른 모델을 선택하거나 API 키를 확인해주세요.")
+        if st.button("처음으로 돌아가기"):
+            st.session_state.step = 1
+            st.rerun()
+        st.stop()
+    
     # 프롬프트 생성
     prompt = f"""
     다음 브랜드/제품에 대한 광고 전략을 분석해 주세요:
@@ -444,11 +542,11 @@ def render_step_2():
     """
     
     # 각 선택된 모델에 대해 분석 실행
-    total_models = len(campaign_data["selected_models"])
+    total_models = len(valid_models)
     progress_bar = st.progress(0)
     analysis_results = {}
     
-    for i, model_name in enumerate(campaign_data["selected_models"]):
+    for i, model_name in enumerate(valid_models):
         status_text = st.empty()
         status_text.text(f"{model_name} 모델이 분석 중입니다...")
         
@@ -463,6 +561,14 @@ def render_step_2():
         # 진행 상황 업데이트
         progress_bar.progress((i + 1) / total_models)
     
+    # 결과가 비어있으면 에러 표시
+    if not analysis_results:
+        st.error("모든 AI 모델 분석이 실패했습니다. 다시 시도해주세요.")
+        if st.button("처음으로 돌아가기", key="back_to_start"):
+            st.session_state.step = 1
+            st.rerun()
+        st.stop()
+    
     st.session_state.analysis_results = analysis_results
     st.session_state.step = 3
     st.rerun()
@@ -473,7 +579,7 @@ def render_step_2():
 def render_step_3():
     if not st.session_state.analysis_results:
         st.error("분석 결과가 없습니다. 다시 시도해주세요.")
-        if st.button("처음으로 돌아가기"):
+        if st.button("처음으로 돌아가기", type="primary", key="error_back_btn"):
             st.session_state.step = 1
             st.rerun()
         return
