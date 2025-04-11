@@ -10,7 +10,7 @@ load_dotenv()
 
 # Initialize API clients
 openai.api_key = os.getenv("OPENAI_API_KEY")
-anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+anthropic_client = anthropic.Client(api_key=os.getenv("ANTHROPIC_API_KEY"))
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Set page config
@@ -88,7 +88,7 @@ if submitted:
                         {"role": "user", "content": prompt}
                     ]
                 )
-                results["Claude-3.7"] = response.content[0].text
+                results["Claude-3.7"] = response.content
             except Exception as e:
                 st.error(f"Claude-3.7 오류: {str(e)}")
 
