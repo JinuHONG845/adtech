@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 from openai import OpenAI
 import google.generativeai as genai
 
@@ -9,9 +10,10 @@ st.set_page_config(
     layout="wide"
 )
 
-# Initialize API clients
-openai_client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY"))
-genai.configure(api_key=st.secrets.get("GOOGLE_API_KEY"))
+# Set API keys
+os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+openai_client = OpenAI()
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Title and description
 st.title("AI 기반 매체 컨설팅")
